@@ -6,6 +6,7 @@
 #include "Pipeline/FileWriterPool.h"
 #include "Pipeline/SuspensionWaiters.h"
 #include "Pipeline/TbbGraphScheduler.h"
+#include "Platform/ModOrganizer.h"
 #include "Platform/Text.h"
 #include "Platform/WholeFile.h"
 #include "Rejection/CpuBvh.h"
@@ -23,6 +24,7 @@
 #include <cmath>
 #include <exception>
 #include <functional>
+#include <mutex>
 #include <memory>
 #include <stdexcept>
 #include <system_error>
@@ -460,12 +462,20 @@ namespace FasterNGIO::Pipeline
 					const auto names = _desc.fileSuffixes.size();
 					if (_desc.skipEmpty && cache.groups.empty()) {
 						// A cache left from an earlier run would otherwise still place grass here.
-						if (_desc.overwrite) {
+						// Under MO2's virtual filesystem an existing file can be another mod's (a downloaded cache):
+						// a remove there deletes it inside that mod, so leave it and say so once.
+						static const bool underMo2 = Platform::ModOrganizerDirectory().has_value();
+						if (_desc.overwrite && underMo2) {
+							static std::once_flag warned;
+							std::call_once(warned, [] { spdlog::warn("not removing stale caches of now-empty cells under Mod Organizer 2: they may belong to other mods"); });
+						} else if (_desc.overwrite) {
 							for (std::size_t name = 0; name < names; ++name) {
 								const auto path = CellPath(a_input.cell, name);
 								if (!_desc.existingFiles || _desc.existingFiles->contains(Platform::LowerAscii(path.filename().string()))) {
 									std::error_code error;
-									std::filesystem::remove(path, error);
+									if (std::filesystem::remove(path, error)) {
+										spdlog::info("removed stale cache {}", path.filename().string());
+									}
 								}
 							}
 						}
