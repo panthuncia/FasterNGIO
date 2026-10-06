@@ -132,7 +132,12 @@ namespace FasterNGIO::Grass
 		for (const auto index : order) {
 			const auto& source = a_candidates.groups[index];
 			NgioGrassGroup group;
-			group.modelPath = source.modelPath;
+			// The engine writes the GRAS record's own MODL string ("landscape\Grass\DeadPineDrJ03.nif",
+			// case kept, no meshes folder prefix), not the archive key placement uses (source.modelPath).
+			group.modelPath = source.grass->modelPath;
+			while (!group.modelPath.empty() && (group.modelPath.back() == '\0' || group.modelPath.back() == ' ')) {
+				group.modelPath.pop_back();
+			}
 			group.grassFormID = source.grass->formID.value;
 			group.wavePeriod = source.grass->wavePeriod;
 			group.vertexLighting = source.grass->HasVertexLighting();
