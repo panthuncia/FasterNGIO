@@ -49,8 +49,12 @@ namespace FasterNGIO::Grass
 	};
 
 	// Reads Skyrim.ini and then SkyrimCustom.ini from a_directory (names matched case-insensitively),
-	// the later file overriding, as the engine's Skyrim.ini setting collection does.
-	[[nodiscard]] GrassIniSettings ReadGrassIniSettings(const std::filesystem::path& a_directory);
+	// the later file overriding, as the engine's Skyrim.ini setting collection does; then a_pluginInis,
+	// the INIs the game loads next to each plugin (Data\<plugin name>.ini), in load order, each one
+	// overriding. Grass mods set [Grass] there: Seasonal Landscapes - Unfrozen.ini's iMinGrassSize=30 is
+	// what the game used over SkyrimCustom.ini's 60 (NGIO's in-game cache matches 30, not 60).
+	[[nodiscard]] GrassIniSettings ReadGrassIniSettings(const std::filesystem::path& a_directory,
+		const std::vector<std::filesystem::path>& a_pluginInis = {});
 
 	void ApplyGrassIniSettings(const GrassIniSettings& a_ini, PlacementSettings& a_settings);
 

@@ -1,7 +1,9 @@
 #include "WorldSetup.h"
 
 #include "Grass/CellCache.h"
+#include "GameData/LoadOrder.h"
 #include "Grass/GameIni.h"
+#include "Platform/DataDirectory.h"
 #include "Platform/FileSystem.h"
 
 #include <spdlog/spdlog.h>
@@ -46,7 +48,19 @@ namespace FasterNGIO::App
 		auto settings = a_options.placement;
 		if (a_options.readGameIni) {
 			if (const auto directory = Grass::LocateGameIniDirectory(a_options.pluginsTxtPath, a_options.dataPath, a_options.gameIniDirectory)) {
-				const auto ini = Grass::ReadGrassIniSettings(directory->path);
+				// The INIs the game loads beside each active plugin, in load order.
+				std::vector<std::filesystem::path> pluginInis;
+				for (const auto& entry : GameData::ReadPluginsTxt(a_options.dataPath, a_options.pluginsTxtPath)) {
+					if (const auto ini = Platform::FindInDirectory(a_options.dataPath, entry.path.stem().string() + ".ini")) {
+						pluginInis.push_back(*ini);
+					}
+				}
+				const auto ini = Grass::ReadGrassIniSettings(directory->path, pluginInis);
+				for (const auto& file : ini.filesRead) {
+					if (std::ranges::find(pluginInis, file) != pluginInis.end()) {
+						spdlog::info("game INI: plugin INI {}", file.filename().string());
+					}
+				}
 				Grass::ApplyGrassIniSettings(ini, settings);
 				if (ini.filesRead.empty()) {
 					spdlog::info("game INI: no Skyrim.ini in {} ({}); using engine defaults", directory->path.string(), directory->origin);

@@ -59,16 +59,20 @@ namespace FasterNGIO::Grass
 		return std::nullopt;
 	}
 
-	GrassIniSettings ReadGrassIniSettings(const std::filesystem::path& a_directory)
+	GrassIniSettings ReadGrassIniSettings(const std::filesystem::path& a_directory, const std::vector<std::filesystem::path>& a_pluginInis)
 	{
 		GrassIniSettings result;
 		// The grass settings belong to the engine's Skyrim.ini collection, which loads Skyrim.ini and
-		// then SkyrimCustom.ini; SkyrimPrefs.ini only feeds the prefs collection.
+		// then SkyrimCustom.ini; SkyrimPrefs.ini only feeds the prefs collection. Plugin INIs come after.
+		std::vector<std::filesystem::path> files;
 		for (const auto* name : { "Skyrim.ini", "SkyrimCustom.ini" }) {
-			const auto path = Platform::FindInDirectory(a_directory, name);
-			if (!path) {
-				continue;
+			if (const auto path = Platform::FindInDirectory(a_directory, name)) {
+				files.push_back(*path);
 			}
+		}
+		files.insert(files.end(), a_pluginInis.begin(), a_pluginInis.end());
+		for (const auto& file : files) {
+			const std::optional<std::filesystem::path> path = file;
 			const auto ini = Platform::IniFile::Load(*path);
 			if (!ini) {
 				continue;
