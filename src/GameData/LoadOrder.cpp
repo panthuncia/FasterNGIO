@@ -4,8 +4,11 @@
 #include "Platform/DataDirectory.h"
 #include "Platform/Text.h"
 
+#include <spdlog/spdlog.h>
+
 #include <oneapi/tbb/parallel_for.h>
 
+#include <algorithm>
 #include <fstream>
 #include <stdexcept>
 #include <string_view>
@@ -87,21 +90,35 @@ namespace FasterNGIO::GameData
 			}
 		});
 
+		// Past the engine's 254 full (00-FD) or 4096 light slots a plugin cannot load; drop it, and then
+		// every plugin that has a dropped or absent master, and report them, instead of refusing the
+		// whole load order (a 4,000-plugin list sat at 255 full after CC masters lost their ESL flag).
+		std::size_t full = 0;
+		std::size_t light = 0;
+		std::unordered_set<std::string> present;
+		std::vector<LoadOrderEntry> kept;
+		kept.reserve(a_entries.size());
+		for (auto& entry : a_entries) {
+			const bool isLight = entry.kind == ModuleKind::Light;
+			if (isLight ? light >= 0x1000u : full >= 0xFEu) {
+				spdlog::error("load order: no {} slot left for {}; it is not loaded (as in game)", isLight ? "light" : "full", entry.pluginName);
+				continue;
+			}
+			if (const auto missing = std::ranges::find_if(entry.masters, [&](const std::string& a_master) { return !present.contains(a_master); });
+				missing != entry.masters.end()) {
+				spdlog::error("load order: {} needs {}, which is not loaded; it is not loaded either", entry.pluginName, *missing);
+				continue;
+			}
+			(isLight ? light : full)++;
+			present.insert(entry.pluginName);
+			kept.push_back(std::move(entry));
+		}
 		std::uint16_t fullSlot = 0;
 		std::uint16_t lightSlot = 0;
-		for (auto& entry : a_entries) {
-			if (entry.kind == ModuleKind::Light) {
-				if (lightSlot > 0x0FFFu) {
-					throw std::runtime_error("too many ESL/light plugins");
-				}
-				entry.fileID = FileID{ .kind = ModuleKind::Light, .slot = lightSlot++ };
-			} else {
-				if (fullSlot > 0xFDu) {
-					throw std::runtime_error("too many full plugins");
-				}
-				entry.fileID = FileID{ .kind = ModuleKind::Full, .slot = fullSlot++ };
-			}
+		for (auto& entry : kept) {
+			entry.fileID = entry.kind == ModuleKind::Light ? FileID{ .kind = ModuleKind::Light, .slot = lightSlot++ } :
+			                                                  FileID{ .kind = ModuleKind::Full, .slot = fullSlot++ };
 		}
-		return a_entries;
+		return kept;
 	}
 }
