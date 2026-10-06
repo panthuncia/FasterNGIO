@@ -43,8 +43,9 @@ TEST(NgioCacheWriter, SerializesGroupsLittleEndian)
 	const auto afterPath = 8u + group.modelPath.size() + 1u;
 	EXPECT_EQ(U32At(bytes, afterPath), 0x41200000u);
 	EXPECT_EQ(U32At(bytes, afterPath + 4), 0x12345678u);
-	EXPECT_EQ(bytes[afterPath + 8], 0u);
-	EXPECT_EQ(bytes[afterPath + 10], 1u);
+	// engine order: fit to slope, uniform scaling, vertex lighting
+	EXPECT_EQ(bytes[afterPath + 8], 1u);
+	EXPECT_EQ(bytes[afterPath + 10], 0u);
 	EXPECT_EQ(bytes[bytes.size() - 4], 0x02u);
 	EXPECT_EQ(bytes[bytes.size() - 3], 0x01u);
 	EXPECT_EQ(bytes[bytes.size() - 2], 0xEEu);

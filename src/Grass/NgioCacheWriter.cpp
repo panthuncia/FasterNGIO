@@ -39,9 +39,11 @@ namespace FasterNGIO::Grass
 
 			AppendU32(output, std::bit_cast<std::uint32_t>(group.wavePeriod));
 			AppendU32(output, group.grassFormID);
-			output.push_back(group.vertexLighting ? 1 : 0);
-			output.push_back(group.uniformScaling ? 1 : 0);
+			// Engine order (in-game caches): fit to slope, uniform scaling, vertex lighting. Vanilla GRAS
+			// flags 0x06 are written 01 01 00; blades of types with the first byte set are tilted.
 			output.push_back(group.fitToSlope ? 1 : 0);
+			output.push_back(group.uniformScaling ? 1 : 0);
+			output.push_back(group.vertexLighting ? 1 : 0);
 			AppendU32(output, static_cast<std::uint32_t>(group.blocks.size()));
 
 			for (const auto& block : group.blocks) {
