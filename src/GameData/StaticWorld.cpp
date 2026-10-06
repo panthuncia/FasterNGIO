@@ -191,6 +191,24 @@ namespace FasterNGIO::GameData
 			}
 		}
 
+		// The worldspace DNAM land height, from the parent while the child has "Use Land Data" (as the
+		// water height in Placement.cpp; depth-capped against cycles).
+		std::optional<float> DefaultLandHeight(const StaticWorldSnapshot& a_snapshot, FormID a_world)
+		{
+			for (int depth = 0; depth < 8; ++depth) {
+				const auto it = a_snapshot.worldsByFormID.find(a_world);
+				if (it == a_snapshot.worldsByFormID.end()) {
+					return std::nullopt;
+				}
+				if (it->second.UsesParentLandData()) {
+					a_world = *it->second.parentWorldFormID;
+					continue;
+				}
+				return it->second.defaultLandHeight;
+			}
+			return std::nullopt;
+		}
+
 		void SelectLands(StaticWorldSnapshot& a_snapshot, std::span<const StaticPluginShard> a_shards)
 		{
 			// A LandInfo is ~8 KB of fixed arrays, so a move is a copy. Select the winners first, then
@@ -213,6 +231,12 @@ namespace FasterNGIO::GameData
 				land.worldFormID = cell->worldFormID;
 				land.cellX = cell->gridX;
 				land.cellY = cell->gridY;
+				if (!land.hasHeights) {
+					if (const auto height = DefaultLandHeight(a_snapshot, *cell->worldFormID)) {
+						land.heights.fill(*height);
+						land.hasHeights = true;
+					}
+				}
 			}
 		}
 

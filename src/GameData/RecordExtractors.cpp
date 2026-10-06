@@ -110,6 +110,9 @@ namespace FasterNGIO::GameData::Internal
 				info.parentUseFlags = ReadLE<std::uint16_t>(subrecord.payload, 0);
 			} else if (subrecord.signature == kSigDnam && subrecord.payload.size() >= 8) {
 				info.defaultWaterHeight = ReadLE<float>(subrecord.payload, 4);
+				if (const auto land = ReadLE<float>(subrecord.payload, 0); std::isfinite(land)) {
+					info.defaultLandHeight = land;
+				}
 			}
 		}
 		return info;

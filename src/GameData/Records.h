@@ -53,6 +53,9 @@ namespace FasterNGIO::GameData
 		std::uint16_t parentUseFlags{ 0 };
 		// DNAM's second float; the engine's default is 0.
 		float defaultWaterHeight{ 0.0f };
+		// DNAM's first float. A LAND without VHGT is flat at this height (Bittercup's ccKRTSSE001QNWorld:
+		// 147 of 182 LANDs; NGIO's in-game cache puts their seagrass at exactly -1024, the DNAM land height).
+		std::optional<float> defaultLandHeight;
 
 		[[nodiscard]] bool UsesParentLandData() const { return parentWorldFormID.has_value() && (parentUseFlags & 0x1u) != 0; }
 	};
