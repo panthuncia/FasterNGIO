@@ -4,11 +4,13 @@
 #include "Options.h"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <stop_token>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Cache generation, shared by the command line (Main.cpp) and the launcher window (Gui/).
@@ -24,6 +26,10 @@ namespace FasterNGIO::App
 	enum class RunStage : std::uint32_t
 	{
 		LoadingPlugins,
+		// Only with Seasons of Skyrim on: working out its automatic winter swaps and reading its swap files.
+		WorkingOutSeasons,
+		// Reading the game's archive list and opening the archives (then measuring the grass models).
+		OpeningArchives,
 		// The smooth weight field, collision extraction and the rejection structures of one world.
 		Preparing,
 		Generating,
@@ -36,12 +42,22 @@ namespace FasterNGIO::App
 	struct RunProgress
 	{
 		std::atomic<RunStage> stage{ RunStage::LoadingPlugins };
+		// When the current stage began (steady_clock ticks), for the launcher's "time so far".
+		std::atomic<std::int64_t> stageBegan{ std::chrono::steady_clock::now().time_since_epoch().count() };
 		std::atomic<std::uint32_t> worldIndex{ 0 };
 		std::atomic<std::uint32_t> worldCount{ 0 };
 		std::atomic<std::uint32_t> worldFormID{ 0 };
 		std::atomic<std::uint32_t> cellsDone{ 0 };
 		std::atomic<std::uint32_t> cellsTotal{ 0 };
 	};
+
+	// The launcher's progress text for a stage. a_seconds is the time in the stage so far; a_world is the
+	// "1/3 Tamriel" prefix. Stages that cannot report a fraction end with the seconds; the cell count is
+	// its own sign of life.
+	[[nodiscard]] std::string StageLabel(RunStage a_stage, std::uint32_t a_seconds, std::string_view a_world, std::uint32_t a_cellsDone, std::uint32_t a_cellsTotal);
+
+	// Whole seconds the run has been in its current stage.
+	[[nodiscard]] std::uint32_t SecondsInStage(const RunProgress& a_progress);
 
 	struct RunControl
 	{

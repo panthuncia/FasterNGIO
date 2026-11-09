@@ -20,6 +20,7 @@ add_executable(FasterNGIOTests
 	NgioRulesTests.cpp
 	PlacementTests.cpp
 	RejectionTests.cpp
+	RunStageTests.cpp
 	SeasonsTests.cpp
 	TestSupport.h
 	UserSettingsTests.cpp
