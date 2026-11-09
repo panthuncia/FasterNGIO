@@ -50,6 +50,7 @@ namespace FasterNGIO::App
 		void SetStage(const RunControl& a_control, RunStage a_stage)
 		{
 			if (a_control.progress) {
+				a_control.progress->stageBegan.store(std::chrono::steady_clock::now().time_since_epoch().count(), std::memory_order_relaxed);
 				a_control.progress->stage.store(a_stage, std::memory_order_relaxed);
 			}
 		}
@@ -502,6 +503,33 @@ namespace FasterNGIO::App
 		return worlds;
 	}
 
+	std::string StageLabel(RunStage a_stage, std::uint32_t a_seconds, std::string_view a_world, std::uint32_t a_cellsDone, std::uint32_t a_cellsTotal)
+	{
+		switch (a_stage) {
+		case RunStage::LoadingPlugins:
+			return std::format("Reading plugins... {}s", a_seconds);
+		case RunStage::WorkingOutSeasons:
+			return std::format("Working out the Seasons of Skyrim winter swaps... {}s", a_seconds);
+		case RunStage::OpeningArchives:
+			return std::format("Opening the game's archives... {}s", a_seconds);
+		case RunStage::Preparing:
+			return std::format("{}: preparing collision... {}s", a_world, a_seconds);
+		case RunStage::Writing:
+			return std::format("Writing the last files... {}s", a_seconds);
+		case RunStage::Generating:
+		case RunStage::Finished:
+			break;
+		}
+		return std::format("{}: {}/{} cells", a_world, a_cellsDone, a_cellsTotal);
+	}
+
+	std::uint32_t SecondsInStage(const RunProgress& a_progress)
+	{
+		const auto began = std::chrono::steady_clock::time_point(std::chrono::steady_clock::duration(a_progress.stageBegan.load(std::memory_order_relaxed)));
+		const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - began).count();
+		return seconds > 0 ? static_cast<std::uint32_t>(seconds) : 0;
+	}
+
 	RunResult Run(const GenerateOptions& a_requested, const RunControl& a_control)
 	{
 		RunResult result;
@@ -535,6 +563,10 @@ namespace FasterNGIO::App
 				options.rejectionFeatures.renderGeometry = options.renderGeometry;
 				LogRejectionFeatures(options.rejectionFeatures);
 			}
+			if (seasonsSettings.enabled) {
+				SetStage(a_control, RunStage::WorkingOutSeasons);
+				spdlog::info("Seasons: working out the automatic winter swaps");
+			}
 			const auto seasons = ResolveSeasons(seasonsSettings, plugins.snapshot, plugins.loadOrder);
 			if (seasonsSettings.enabled) {
 				(void)CompareAutomaticWinterSwaps(seasonsSettings, seasons, plugins.snapshot, plugins.loadOrder);
@@ -557,6 +589,7 @@ namespace FasterNGIO::App
 			auto placement = ResolvePlacementSettings(options);
 			const auto shapes = MakeQueryShapes(plugins.snapshot, options.rejectionConfig);
 			std::optional<Archives::ArchiveResolver> resolver;
+			SetStage(a_control, RunStage::OpeningArchives);
 			resolver.emplace(MakeResolver(options, plugins));
 			const auto grassModels = LoadGrassModels(plugins.snapshot, *resolver);
 			placement.unloadableGrass = std::addressof(grassModels.missingGrass);

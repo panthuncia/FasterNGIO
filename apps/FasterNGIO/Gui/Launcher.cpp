@@ -757,23 +757,8 @@ namespace FasterNGIO::Gui
 					const auto worldIndex = _progress->worldIndex.load(std::memory_order_relaxed);
 					const auto done = _progress->cellsDone.load(std::memory_order_relaxed);
 					const auto total = _progress->cellsTotal.load(std::memory_order_relaxed);
-					std::string label;
 					float fraction = 0.0f;
-					switch (stage) {
-					case App::RunStage::LoadingPlugins:
-						label = "Reading plugins...";
-						break;
-					case App::RunStage::Preparing:
-						label = std::format("{}/{} {}: preparing collision...", worldIndex + 1, worldCount, WorldName(_progress->worldFormID.load()));
-						break;
-					case App::RunStage::Writing:
-						label = "Writing the last files...";
-						break;
-					case App::RunStage::Generating:
-					case App::RunStage::Finished:
-						label = std::format("{}/{} {}: {}/{} cells", worldIndex + 1, worldCount, WorldName(_progress->worldFormID.load()), done, total);
-						break;
-					}
+					const auto label = App::StageLabel(stage, App::SecondsInStage(*_progress), std::format("{}/{} {}", worldIndex + 1, worldCount, WorldName(_progress->worldFormID.load())), done, total);
 					if (worldCount != 0) {
 						const float worldFraction = total != 0 && stage >= App::RunStage::Generating ? static_cast<float>(done) / static_cast<float>(total) : 0.0f;
 						fraction = (static_cast<float>(worldIndex) + worldFraction) / static_cast<float>(worldCount);
